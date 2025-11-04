@@ -1,0 +1,124 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id          String        @id @default(cuid())
+  name        String
+  email       String     @unique
+  emailVerified Boolean?
+  image       String?
+  password    String?
+  role        Role       @default(MEMBER)
+  accounts   Account[]
+  sessions  Session[]
+  notes       Note[]
+  messages    Message[]  @relation("UserMessages")
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+}
+
+model Verification {
+    id          String   @id @default(cuid())
+    identifier  String   @unique
+    token       String?
+    value       String   // Add this field
+    expiresAt   DateTime  
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @updatedAt
+
+    @@unique([identifier, token])
+}
+
+model Contact {
+  id            Int        @id @default(autoincrement())
+  name          String
+  phoneNumber   String     @unique
+  whatsappId    String?    // optional, for WhatsApp messages
+  messages      Message[]
+  notes         Note[]
+  createdAt     DateTime   @default(now())
+}
+
+model Message {
+  id          Int        @id @default(autoincrement())
+  content     String
+  channel     Channel    // SMS or WHATSAPP
+  direction   Direction  // SENT or RECEIVED
+  scheduledAt DateTime?  // optional scheduling time
+  sentAt      DateTime?  // actual time sent
+  status      MessageStatus @default(PENDING)
+  contact     Contact    @relation(fields: [contactId], references: [id])
+  contactId   Int
+  sender      User?      @relation("UserMessages", fields: [senderId], references: [id])
+  senderId    String?
+  createdAt   DateTime   @default(now())
+}
+
+model Note {
+  id          Int       @id @default(autoincrement())
+  content     String
+  contact     Contact?   @relation(fields: [contactId], references: [id])
+  contactId   Int
+  author      User      @relation(fields: [authorId], references: [id])
+  authorId    String
+  createdAt   DateTime  @default(now())
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+enum Role {
+  ADMIN
+  MEMBER
+}
+
+enum Channel {
+  SMS
+  WHATSAPP
+}
+
+enum Direction {
+  SENT
+  RECEIVED
+}
+
+enum MessageStatus {
+  PENDING
+  SENT
+  DELIVERED
+  FAILED
+}
+
+enum NoteVisibility {
+  PUBLIC
+  PRIVATE
+}
